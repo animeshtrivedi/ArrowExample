@@ -1,4 +1,4 @@
-package com.github.animeshtrivedi.FileBench.example;
+package com.github.animeshtrivedi.arrowexample;
 
 import java.util.Random;
 

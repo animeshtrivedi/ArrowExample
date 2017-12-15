@@ -1,4 +1,4 @@
-package com.github.animeshtrivedi.FileBench.example;
+package com.github.animeshtrivedi.arrowexample;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.memory.RootAllocator;
