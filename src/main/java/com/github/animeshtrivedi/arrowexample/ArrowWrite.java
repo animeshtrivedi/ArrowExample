@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Random;
 
 import com.google.common.collect.ImmutableList;
-import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.memory.*;
 import org.apache.arrow.vector.*;
 import org.apache.arrow.vector.schema.ArrowVectorType;
@@ -30,6 +29,7 @@ public class ArrowWrite {
     private Random random;
     private int entries;
     private int maxEntries = 1024;
+    private long checkSum = 0;
 
     public ArrowWrite(){
         random = new Random(System.nanoTime());
@@ -38,6 +38,7 @@ public class ArrowWrite {
         for(int i =0; i < this.entries; i++){
             this.data[i] = new ArrowExampleClass(this.random, i);
             System.out.println(this.data[i].toString());
+            checkSum+=this.data[i].getSumHash();
         }
         this.ra = new RootAllocator(Integer.MAX_VALUE);
     }
@@ -119,6 +120,7 @@ public class ArrowWrite {
         arrowWriter.close();
         fileOutputStream.flush();
         fileOutputStream.close();
+        System.err.println("****** > " + this.checkSum);
     }
 
     private void writeFieldInt(Field field, FieldVector fieldVector, int from, int items){
@@ -152,7 +154,6 @@ public class ArrowWrite {
         varBinaryVector.setInitialCapacity(items);
         varBinaryVector.allocateNew();
         NullableVarBinaryVector.Mutator mutator = varBinaryVector.getMutator();
-        System.out.println(" value capacity " + varBinaryVector.getValueCapacity() + " items : " + items);
         for(int i = 0; i < items; i++){
             mutator.setIndexDefined(i);
             mutator.setValueLengthSafe(i, this.data[from + i].arr.length);

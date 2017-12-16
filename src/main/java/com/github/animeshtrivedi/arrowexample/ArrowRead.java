@@ -2,13 +2,12 @@ package com.github.animeshtrivedi.arrowexample;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.*;
 import org.apache.arrow.vector.dictionary.DictionaryProvider;
 import org.apache.arrow.vector.file.ArrowBlock;
 import org.apache.arrow.vector.file.ArrowFileReader;
 import org.apache.arrow.vector.file.SeekableReadChannel;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -26,6 +25,7 @@ import static org.apache.arrow.vector.types.FloatingPointPrecision.SINGLE;
  */
 public class ArrowRead {
     private RootAllocator ra = null;
+    private long checkSum = 0;
 
     public ArrowRead(){
         this.ra = new RootAllocator(Integer.MAX_VALUE);
@@ -81,13 +81,21 @@ public class ArrowRead {
             List<FieldVector> fieldVector = root.getFieldVectors();
             System.out.println("\t["+i+"] number of fieldVectors (corresponding to columns) : " + fieldVector.size());
             for(int j = 0; j < fieldVector.size(); j++){
-                ValueVector.Accessor accessor = fieldVector.get(j).getAccessor();
-                System.out.println("\t["+i+"] accessor " + j + " | " + getAccessorString(accessor));
-                showAccessor(accessor);
+                Types.MinorType mt = fieldVector.get(j).getMinorType();
+                switch(mt){
+                    case INT: showIntAccessor(fieldVector.get(j)); break;
+                    case BIGINT: showBigIntAccessor(fieldVector.get(j)); break;
+                    case VARBINARY: showVarBinaryAccessor(fieldVector.get(j)); break;
+                    case FLOAT4: showFloat4Accessor(fieldVector.get(j));break;
+                    default: throw new Exception(" MinorType " + mt);
+                }
+                //showAccessor(fieldVector.get(j).getAccessor());
+                //System.out.println("\t["+i+"] accessor " + j + " | " + getAccessorString(accessor));
             }
         }
         System.out.println("Done processing the file");
         arrowFileReader.close();
+        System.err.println("****** > " + this.checkSum);
     }
 
     private String getAccessorString(ValueVector.Accessor accessor){
@@ -100,9 +108,61 @@ public class ArrowRead {
         for(int j = 0; j < accessor.getValueCount(); j++){
             if(!accessor.isNull(j)){
                 System.out.println("\t\t accessorType:  " + accessor.getClass().getCanonicalName()
-                        + " value[ " + j +"] " + accessor.getObject(j));
+                        + " value[" + j +"] " + accessor.getObject(j));
             } else {
-                System.out.println("\t\t intAccessor NULL at " + j);
+                System.out.println("\t\t accessorType:  " + accessor.getClass().getCanonicalName() + " NULL at " + j);
+            }
+        }
+    }
+
+    private void showIntAccessor(FieldVector fx){
+        NullableIntVector.Accessor accessor = ((NullableIntVector) fx).getAccessor();
+        for(int j = 0; j < accessor.getValueCount(); j++){
+            if(!accessor.isNull(j)){
+                int value = accessor.get(j);
+                System.out.println("\t\t intAccessor[" + j +"] " + value);
+                this.checkSum+=value;
+            } else {
+                System.out.println("\t\t intAccessor[" + j +"] : NULL ");
+            }
+        }
+    }
+
+    private void showBigIntAccessor(FieldVector fx){
+        NullableBigIntVector.Accessor accessor = ((NullableBigIntVector)fx).getAccessor();
+        for(int j = 0; j < accessor.getValueCount(); j++){
+            if(!accessor.isNull(j)){
+                long value = accessor.get(j);
+                System.out.println("\t\t bigIntAccessor[" + j +"] " + value);
+                this.checkSum+=value;
+            } else {
+                System.out.println("\t\t bigIntAccessor[" + j +"] : NULL ");
+            }
+        }
+    }
+
+    private void showVarBinaryAccessor(FieldVector fx){
+        NullableVarBinaryVector.Accessor accessor =((NullableVarBinaryVector) fx).getAccessor();
+        for(int j = 0; j < accessor.getValueCount(); j++){
+            if(!accessor.isNull(j)){
+                byte[] value = accessor.get(j);
+                System.out.println("\t\t varBinaryAccessor[" + j +"] " + ArrowExampleClass.firstX(value, 5));
+                this.checkSum+=ArrowExampleClass.hashArray(value);
+            } else {
+                System.out.println("\t\t varBinaryAccessor[" + j +"] : NULL ");
+            }
+        }
+    }
+
+    private void showFloat4Accessor(FieldVector fx){
+        NullableFloat4Vector.Accessor accessor = ((NullableFloat4Vector)fx).getAccessor();
+        for(int j = 0; j < accessor.getValueCount(); j++){
+            if(!accessor.isNull(j)){
+                float value = accessor.get(j);
+                System.out.println("\t\t float4[" + j +"] " + value);
+                this.checkSum+=value;
+            } else {
+                System.out.println("\t\t float4[" + j +"] : NULL ");
             }
         }
     }
