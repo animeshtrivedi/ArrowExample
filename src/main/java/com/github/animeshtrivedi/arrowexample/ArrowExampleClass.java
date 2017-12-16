@@ -21,4 +21,17 @@ public class ArrowExampleClass {
         this.aFloat = this.random.nextFloat();
     }
 
+    public String firstX(int items){
+        StringBuilder sb = new StringBuilder();
+        for(int i = 0; i < items; i++) {
+            sb.append(String.format("0x%02x", this.arr[i])+ " ");
+        }
+        return sb.toString();
+    }
+    public String toString() {
+        return  anInt + "\t | " +
+                + aLong + "\t | " +
+                " arr[" + this.arr.length + "] " + firstX(5) + "\t | " +
+                + aFloat;
+    }
 }

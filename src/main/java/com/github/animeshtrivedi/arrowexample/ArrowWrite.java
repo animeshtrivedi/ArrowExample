@@ -37,6 +37,7 @@ public class ArrowWrite {
         this.data = new ArrowExampleClass[this.entries];
         for(int i =0; i < this.entries; i++){
             this.data[i] = new ArrowExampleClass(this.random);
+            System.out.println(this.data[i].toString());
         }
         this.ra = new RootAllocator(Integer.MAX_VALUE);
     }
@@ -95,12 +96,15 @@ public class ArrowWrite {
                 default: throw new Exception(" Does not work " + vector.getMinorType());
             }
         }
+        arrowWriter.writeBatch();
         arrowWriter.end();
         arrowWriter.close();
+        fileOutputStream.flush();
+        fileOutputStream.close();
     }
 
     private void writeFieldInt(Field field, FieldVector fieldVector){
-        fieldVector.getMutator().setValueCount(this.entries * 2);
+        fieldVector.getMutator().setValueCount(this.entries);
         ArrowBuf buf = fieldVector.getDataBuffer();
         for(int i = 0; i < this.entries; i++){
             buf.setInt(i, this.data[i].anInt);
@@ -108,7 +112,7 @@ public class ArrowWrite {
     }
 
     private void writeFieldLong(Field field, FieldVector fieldVector){
-        fieldVector.getMutator().setValueCount(this.entries * 2);
+        fieldVector.getMutator().setValueCount(this.entries);
         ArrowBuf buf = fieldVector.getDataBuffer();
         for(int i = 0; i < this.entries; i++){
             buf.setLong(i, this.data[i].aLong);
@@ -120,7 +124,7 @@ public class ArrowWrite {
     }
 
     private void writeFieldFloat4(Field field, FieldVector fieldVector){
-        fieldVector.getMutator().setValueCount(this.entries * 2);
+        fieldVector.getMutator().setValueCount(this.entries);
         ArrowBuf buf = fieldVector.getDataBuffer();
         for(int i = 0; i < this.entries; i++){
             buf.setFloat(i, this.data[i].aFloat);

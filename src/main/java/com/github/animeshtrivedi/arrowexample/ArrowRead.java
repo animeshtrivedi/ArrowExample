@@ -13,7 +13,6 @@ import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 
 import static org.apache.arrow.vector.types.FloatingPointPrecision.SINGLE;
 
@@ -57,11 +56,12 @@ public class ArrowRead {
 
         ArrowFileReader arrowFileReader = new ArrowFileReader(new SeekableReadChannel(fileInputStream.getChannel()),
                 this.ra);
+        arrowFileReader.loadNextBatch();
         VectorSchemaRoot root  = arrowFileReader.getVectorSchemaRoot();
         System.out.println(" schema is "  + root.getSchema().toString());
         System.out.println(" numRows: " + root.getRowCount());
-
     }
+
     public static void main(String[] args) {
         System.out.println("Hello World!"); // Display the string.
         ArrowRead ex = new ArrowRead();
