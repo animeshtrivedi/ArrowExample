@@ -99,7 +99,8 @@ public class ArrowRead {
     private void showAccessor(ValueVector.Accessor accessor){
         for(int j = 0; j < accessor.getValueCount(); j++){
             if(!accessor.isNull(j)){
-                System.out.println("\t\t intAccessor " + accessor.getObject(j));
+                System.out.println("\t\t accessorType:  " + accessor.getClass().getCanonicalName()
+                        + " value[ " + j +"] " + accessor.getObject(j));
             } else {
                 System.out.println("\t\t intAccessor NULL at " + j);
             }

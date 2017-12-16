@@ -131,7 +131,7 @@ public class ArrowWrite {
             // there is setSafe too - what does that mean? TODO:
             mutator.set(i, 1, this.data[from + i].anInt);
         }
-        // how many are set         
+        // how many are set
         mutator.setValueCount(items);
     }
 
