@@ -36,7 +36,7 @@ public class ArrowWrite {
         this.entries = 10; //this.random.nextInt(this.maxEntries);
         this.data = new ArrowExampleClass[this.entries];
         for(int i =0; i < this.entries; i++){
-            this.data[i] = new ArrowExampleClass(this.random);
+            this.data[i] = new ArrowExampleClass(this.random, i);
             System.out.println(this.data[i].toString());
         }
         this.ra = new RootAllocator(Integer.MAX_VALUE);
@@ -82,6 +82,13 @@ public class ArrowWrite {
         VectorSchemaRoot root = VectorSchemaRoot.create(schema, this.ra);
         DictionaryProvider.MapDictionaryProvider provider = new DictionaryProvider.MapDictionaryProvider();
         ArrowFileWriter arrowWriter = new ArrowFileWriter(root, provider, fileOutputStream.getChannel());
+        // show some stuff about the schema and layout
+        for (Field field : root.getSchema().getFields()) {
+            FieldVector vector = root.getVector(field.getName());
+            showFieldLayout(field, vector);
+        }
+
+        // writing logic starts here
         int batchSize = 2;
         System.out.println(" Generated " + this.entries + " data entries , batch size " + batchSize);
         arrowWriter.start();
@@ -89,7 +96,6 @@ public class ArrowWrite {
             root.setRowCount(batchSize);
             for (Field field : root.getSchema().getFields()) {
                 FieldVector vector = root.getVector(field.getName());
-                System.out.println(" \t >> minor type on the column " + vector.getMinorType());
                 switch (vector.getMinorType()) {
                     case INT:
                         writeFieldInt(field, vector, i, batchSize);
@@ -116,34 +122,46 @@ public class ArrowWrite {
     }
 
     private void writeFieldInt(Field field, FieldVector fieldVector, int from, int items){
-        fieldVector.getMutator().setValueCount(items);
-        ArrowBuf buf = fieldVector.getDataBuffer();
-        for(int i = from; i < from + items; i++){
-            buf.setInt(i, this.data[i].anInt);
+        NullableIntVector intVector = (NullableIntVector) fieldVector;
+        NullableIntVector.Mutator mutator = intVector.getMutator();
+        mutator.setValueCount(items);
+        for(int i = 0; i < items; i++){
+            mutator.setIndexDefined(i);
+            // there is setSafe too - what does that mean? TODO:
+            mutator.set(i, 1, this.data[from + i].anInt);
         }
     }
 
     private void writeFieldLong(Field field, FieldVector fieldVector, int from, int items){
-        fieldVector.getMutator().setValueCount(items);
-        ArrowBuf buf = fieldVector.getDataBuffer();
-        for(int i = from; i < from + items; i++){
-            buf.setLong(i, this.data[i].aLong);
+        NullableBigIntVector bigIntVector = (NullableBigIntVector) fieldVector;
+        NullableBigIntVector.Mutator mutator = bigIntVector.getMutator();
+        mutator.setValueCount(items);
+        for(int i = 0; i < items; i++){
+            mutator.set(i, 1, this.data[from + i].aLong);
         }
     }
 
     private void writeFieldVarBinary(Field field, FieldVector fieldVector, int from, int items){
-
+//        NullableVarBinaryVector varBinaryVector = (NullableVarBinaryVector) fieldVector;
+//        NullableVarBinaryVector.Mutator mutator = varBinaryVector.getMutator();
+//        mutator.setValueCount(items);
+//        for(int i = 0; i < items; i++){
+//            mutator.setIndexDefined(i);
+//            mutator.setValueLengthSafe(i, this.data[from + i].arr.length);
+//            mutator.set(i, this.data[from + i].arr);
+//        }
     }
 
     private void writeFieldFloat4(Field field, FieldVector fieldVector, int from, int items){
-        fieldVector.getMutator().setValueCount(items);
-        ArrowBuf buf = fieldVector.getDataBuffer();
-        for(int i = from; i < from + items; i++){
-            buf.setFloat(i, this.data[i].aFloat);
+        NullableFloat4Vector float4Vector  = (NullableFloat4Vector ) fieldVector;
+        NullableFloat4Vector.Mutator mutator = float4Vector.getMutator();
+        mutator.setValueCount(items);
+        for(int i = 0; i < items; i++){
+            mutator.set(i, 1, this.data[from + i].aFloat);
         }
     }
 
-    private void writeFieldLayout(Field field, FieldVector fieldVector){
+    private void showFieldLayout(Field field, FieldVector fieldVector){
         // per field execution
         TypeLayout typeLayout = TypeLayout.getTypeLayout(field.getType());
         List<ArrowVectorType> vectorTypes = field.getTypeLayout().getVectorTypes();
@@ -151,9 +169,9 @@ public class ArrowWrite {
         if (vectorTypes.size() != fieldInnerVectors.size()) {
             throw new IllegalArgumentException("vector types and inner vectors are not the same size: " + vectorTypes.size() + " != " + fieldInnerVectors.size());
         }
-        System.out.println(" ----- " + field.toString() + " -------- ");
+        System.out.println(" ----- [ " + field.toString() + " ] -------- ");
         System.out.println("FieldVector type: " + fieldVector.getClass().getCanonicalName());
-        System.out.println(" typeLayout is " +  typeLayout.toString() + " vectorSize is " + vectorTypes.size() + " innverVector Size: " + fieldInnerVectors.size());
+        System.out.println("TypeLayout is " +  typeLayout.toString() + " vectorSize is " + vectorTypes.size() + " innverVector Size: " + fieldInnerVectors.size());
         for(int i = 0; i < vectorTypes.size(); i++){
             /* fields in the vector type tells how to locate, for primitive types it has only 2 validity and data
             whereas for binary it has 3, validity, offset and data. I suppose if I remove the nullable part, then
@@ -161,23 +179,23 @@ public class ArrowWrite {
             */
             System.out.println(" \t vector type entries [" + i + "] " + vectorTypes.get(i).toString());
         }
-        System.out.println(" ------------- ");
-
-        fieldVector.allocateNew();
-        fieldVector.getMutator().setValueCount(this.entries);
-        System.out.println(" Setting up the mutator count to be " + this.entries + " ** " + fieldVector.getMutator().getClass().getCanonicalName() + " >>>>> " + field.getFieldType().getType().getTypeID());
-        /* based upon the schema */
-        for (int v = 0; v < vectorTypes.size(); v++){
-            /* we get specific ArrowVectorType and associated BufferBacked */
-            ArrowVectorType vectorType = vectorTypes.get(v);
-            BufferBacked bufferBacked = fieldInnerVectors.get(v);
-            /* I don't like this explicit casting ? */
-            ValueVector valueVector = (ValueVector) bufferBacked;
-            System.out.println("\t valueVector minor type is : " + valueVector.getMinorType());
-            valueVector.setInitialCapacity(this.entries);
-            valueVector.allocateNew();
-            valueVector.clear();
-        }
+        System.out.println("*********************************************");
+//
+//        fieldVector.allocateNew();
+//        fieldVector.getMutator().setValueCount(this.entries);
+//        System.out.println(" Setting up the mutator count to be " + this.entries + " ** " + fieldVector.getMutator().getClass().getCanonicalName() + " >>>>> " + field.getFieldType().getType().getTypeID());
+//        /* based upon the schema */
+//        for (int v = 0; v < vectorTypes.size(); v++){
+//            /* we get specific ArrowVectorType and associated BufferBacked */
+//            ArrowVectorType vectorType = vectorTypes.get(v);
+//            BufferBacked bufferBacked = fieldInnerVectors.get(v);
+//            /* I don't like this explicit casting ? */
+//            ValueVector valueVector = (ValueVector) bufferBacked;
+//            System.out.println("\t valueVector minor type is : " + valueVector.getMinorType());
+//            valueVector.setInitialCapacity(this.entries);
+//            valueVector.allocateNew();
+//            valueVector.clear();
+//        }
     }
 
     private void writeInts(IntVector intVector) throws IOException {

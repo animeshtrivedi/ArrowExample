@@ -84,6 +84,13 @@ public class ArrowRead {
             FieldVector fieldVector1 = fieldVector.get(0);
             ValueVector.Accessor accessor = fieldVector1.getAccessor();
             System.out.println("\t["+i+"] accessor 0 " + getAccessorString(accessor));
+            for(int j = 0; j < accessor.getValueCount(); j++){
+                if(!accessor.isNull(j)){
+                    System.out.println("\t\t intAccessor " + accessor.getObject(j));
+                } else {
+                    System.out.println("\t\t intAccessor NULL at " + j);
+                }
+            }
         }
         System.out.println("Done processing the file");
         arrowFileReader.close();

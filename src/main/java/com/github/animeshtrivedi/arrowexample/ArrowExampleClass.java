@@ -12,9 +12,9 @@ public class ArrowExampleClass {
     public float aFloat;
     public Random random;
 
-    public ArrowExampleClass(Random random){
+    public ArrowExampleClass(Random random, int index){
         this.random = random;
-        this.anInt = this.random.nextInt();
+        this.anInt = index; // this.random.nextInt();
         this.aLong = this.random.nextLong();
         this.arr = new byte[this.random.nextInt(1024)];
         this.random.nextBytes(this.arr);
