@@ -58,8 +58,10 @@ public class ArrowRead {
                 this.ra);
         arrowFileReader.loadNextBatch();
         VectorSchemaRoot root  = arrowFileReader.getVectorSchemaRoot();
-        System.out.println(" schema is "  + root.getSchema().toString());
-        System.out.println(" numRows: " + root.getRowCount());
+        System.out.println("\nReading the arrow file : " + filename);
+        System.out.println("File size : " + arrowFile.length() +
+                " bytes, numRows: " + root.getRowCount() +
+                " schema is "  + root.getSchema().toString());
     }
 
     public static void main(String[] args) {
