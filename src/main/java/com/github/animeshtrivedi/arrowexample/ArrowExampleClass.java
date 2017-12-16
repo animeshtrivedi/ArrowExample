@@ -22,8 +22,9 @@ public class ArrowExampleClass {
     }
 
     public String firstX(int items){
+        int toProcess = Math.min(items, this.arr.length);
         StringBuilder sb = new StringBuilder();
-        for(int i = 0; i < items; i++) {
+        for(int i = 0; i < toProcess; i++) {
             sb.append(String.format("0x%02x", this.arr[i])+ " ");
         }
         return sb.toString();
