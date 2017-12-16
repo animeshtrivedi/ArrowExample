@@ -80,16 +80,10 @@ public class ArrowRead {
             System.out.println("\t["+i+"] row count for this block is " + root.getRowCount());
             List<FieldVector> fieldVector = root.getFieldVectors();
             System.out.println("\t["+i+"] number of fieldVectors (corresponding to columns) : " + fieldVector.size());
-
-            FieldVector fieldVector1 = fieldVector.get(0);
-            ValueVector.Accessor accessor = fieldVector1.getAccessor();
-            System.out.println("\t["+i+"] accessor 0 " + getAccessorString(accessor));
-            for(int j = 0; j < accessor.getValueCount(); j++){
-                if(!accessor.isNull(j)){
-                    System.out.println("\t\t intAccessor " + accessor.getObject(j));
-                } else {
-                    System.out.println("\t\t intAccessor NULL at " + j);
-                }
+            for(int j = 0; j < fieldVector.size(); j++){
+                ValueVector.Accessor accessor = fieldVector.get(j).getAccessor();
+                System.out.println("\t["+i+"] accessor " + j + " | " + getAccessorString(accessor));
+                showAccessor(accessor);
             }
         }
         System.out.println("Done processing the file");
@@ -100,6 +94,16 @@ public class ArrowRead {
         return  "accessorType: " + accessor.getClass().getCanonicalName()
                 + " valueCount " + accessor.getValueCount()
                 + " nullCount " + accessor.getNullCount();
+    }
+
+    private void showAccessor(ValueVector.Accessor accessor){
+        for(int j = 0; j < accessor.getValueCount(); j++){
+            if(!accessor.isNull(j)){
+                System.out.println("\t\t intAccessor " + accessor.getObject(j));
+            } else {
+                System.out.println("\t\t intAccessor NULL at " + j);
+            }
+        }
     }
 
 //
