@@ -2,8 +2,11 @@ package com.github.animeshtrivedi.arrowexample;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.dictionary.DictionaryProvider;
+import org.apache.arrow.vector.file.ArrowBlock;
 import org.apache.arrow.vector.file.ArrowFileReader;
 import org.apache.arrow.vector.file.SeekableReadChannel;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -13,6 +16,8 @@ import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.List;
 
 import static org.apache.arrow.vector.types.FloatingPointPrecision.SINGLE;
 
@@ -56,12 +61,62 @@ public class ArrowRead {
 
         ArrowFileReader arrowFileReader = new ArrowFileReader(new SeekableReadChannel(fileInputStream.getChannel()),
                 this.ra);
-        arrowFileReader.loadNextBatch();
-        VectorSchemaRoot root  = arrowFileReader.getVectorSchemaRoot();
         System.out.println("\nReading the arrow file : " + filename);
+        VectorSchemaRoot root  = arrowFileReader.getVectorSchemaRoot();
         System.out.println("File size : " + arrowFile.length() +
-                " bytes, numRows: " + root.getRowCount() +
                 " schema is "  + root.getSchema().toString());
+
+        List<ArrowBlock> arrowBlocks = arrowFileReader.getRecordBlocks();
+        System.out.println("Number of arrow blocks are " + arrowBlocks.size());
+        for (int i = 0; i < arrowBlocks.size(); i++) {
+            ArrowBlock rbBlock = arrowBlocks.get(i);
+            if (!arrowFileReader.loadRecordBatch(rbBlock)) {
+                throw new IOException("Expected to read record batch");
+            }
+            System.out.println("\t["+i+"] ArrowBlock, offset: " + rbBlock.getOffset() +
+                    ", metadataLength: " + rbBlock.getMetadataLength() +
+                    ", bodyLength " + rbBlock.getBodyLength());
+            /* we can now process this block, it is now loaded */
+            System.out.println("\t["+i+"] row count for this block is " + root.getRowCount());
+            List<FieldVector> fieldVector = root.getFieldVectors();
+            System.out.println("\t["+i+"] number of fieldVectors (corresponding to columns) : " + fieldVector.size());
+
+            FieldVector fieldVector1 = fieldVector.get(0);
+            ValueVector.Accessor accessor = fieldVector1.getAccessor();
+            System.out.println("\t["+i+"] accessor 0 " + getAccessorString(accessor));
+        }
+        System.out.println("Done processing the file");
+        arrowFileReader.close();
+    }
+
+    private String getAccessorString(ValueVector.Accessor accessor){
+        return  "accessorType: " + accessor.getClass().getCanonicalName()
+                + " valueCount " + accessor.getValueCount()
+                + " nullCount " + accessor.getNullCount();
+    }
+
+//
+//        int batchNumber = 0;
+//        int runningIndex = 0;
+//        while(hasMore){
+//            System.out.println("\t processing batch ..." + batchNumber);
+//            // do something here
+//            FieldVector fv = root.getVector("int");
+//            ValueVector.Accessor accessor = fv.getAccessor();
+//            System.out.println("\tintAccessor | nullCount: " + accessor.getNullCount() + " getValueCount: " + accessor.getValueCount());
+//            System.out.println("\t isNull at 0 " + accessor.isNull(0) + " value " + accessor.getObject(0));
+//            // and then accounting stuff
+//            batchNumber++;
+//            hasMore = arrowFileReader.loadNextBatch();
+//        }
+
+    public void someDeadCode(ArrowFileReader arrowFileReader) throws IOException {
+        for (ArrowBlock rbBlock : arrowFileReader.getRecordBlocks()) {
+            if (!arrowFileReader.loadRecordBatch(rbBlock)) {
+                throw new IOException("Expected to read record batch");
+            }
+            System.out.println(" \t\t " + rbBlock);
+        }
     }
 
     public static void main(String[] args) {

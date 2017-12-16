@@ -82,51 +82,63 @@ public class ArrowWrite {
         VectorSchemaRoot root = VectorSchemaRoot.create(schema, this.ra);
         DictionaryProvider.MapDictionaryProvider provider = new DictionaryProvider.MapDictionaryProvider();
         ArrowFileWriter arrowWriter = new ArrowFileWriter(root, provider, fileOutputStream.getChannel());
+        int batchSize = 2;
+        System.out.println(" Generated " + this.entries + " data entries , batch size " + batchSize);
         arrowWriter.start();
-        System.out.println(" Generated " + this.entries + " data entries ");
-        root.setRowCount(this.entries);
-        for (Field field : root.getSchema().getFields()) {
-            FieldVector vector = root.getVector(field.getName());
-            System.out.println(" \t >> minor type on the column " + vector.getMinorType());
-            switch (vector.getMinorType()) {
-                case INT: writeFieldInt(field, vector); break;
-                case BIGINT: writeFieldLong(field, vector); break;
-                case VARBINARY: writeFieldVarBinary(field, vector); break;
-                case FLOAT4: writeFieldFloat4(field, vector); break;
-                default: throw new Exception(" Does not work " + vector.getMinorType());
+        for(int i = 0; i < this.entries; i+=batchSize) {
+            root.setRowCount(batchSize);
+            for (Field field : root.getSchema().getFields()) {
+                FieldVector vector = root.getVector(field.getName());
+                System.out.println(" \t >> minor type on the column " + vector.getMinorType());
+                switch (vector.getMinorType()) {
+                    case INT:
+                        writeFieldInt(field, vector, i, batchSize);
+                        break;
+                    case BIGINT:
+                        writeFieldLong(field, vector, i, batchSize);
+                        break;
+                    case VARBINARY:
+                        writeFieldVarBinary(field, vector, i, batchSize);
+                        break;
+                    case FLOAT4:
+                        writeFieldFloat4(field, vector, i, batchSize);
+                        break;
+                    default:
+                        throw new Exception(" Does not work " + vector.getMinorType());
+                }
             }
+            arrowWriter.writeBatch();
         }
-        arrowWriter.writeBatch();
         arrowWriter.end();
         arrowWriter.close();
         fileOutputStream.flush();
         fileOutputStream.close();
     }
 
-    private void writeFieldInt(Field field, FieldVector fieldVector){
-        fieldVector.getMutator().setValueCount(this.entries);
+    private void writeFieldInt(Field field, FieldVector fieldVector, int from, int items){
+        fieldVector.getMutator().setValueCount(items);
         ArrowBuf buf = fieldVector.getDataBuffer();
-        for(int i = 0; i < this.entries; i++){
+        for(int i = from; i < from + items; i++){
             buf.setInt(i, this.data[i].anInt);
         }
     }
 
-    private void writeFieldLong(Field field, FieldVector fieldVector){
-        fieldVector.getMutator().setValueCount(this.entries);
+    private void writeFieldLong(Field field, FieldVector fieldVector, int from, int items){
+        fieldVector.getMutator().setValueCount(items);
         ArrowBuf buf = fieldVector.getDataBuffer();
-        for(int i = 0; i < this.entries; i++){
+        for(int i = from; i < from + items; i++){
             buf.setLong(i, this.data[i].aLong);
         }
     }
 
-    private void writeFieldVarBinary(Field field, FieldVector fieldVector){
+    private void writeFieldVarBinary(Field field, FieldVector fieldVector, int from, int items){
 
     }
 
-    private void writeFieldFloat4(Field field, FieldVector fieldVector){
-        fieldVector.getMutator().setValueCount(this.entries);
+    private void writeFieldFloat4(Field field, FieldVector fieldVector, int from, int items){
+        fieldVector.getMutator().setValueCount(items);
         ArrowBuf buf = fieldVector.getDataBuffer();
-        for(int i = 0; i < this.entries; i++){
+        for(int i = from; i < from + items; i++){
             buf.setFloat(i, this.data[i].aFloat);
         }
     }
