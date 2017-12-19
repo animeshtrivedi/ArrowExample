@@ -25,10 +25,19 @@ import static org.apache.arrow.vector.types.FloatingPointPrecision.SINGLE;
  */
 public class ArrowRead {
     private RootAllocator ra = null;
-    private long checkSum = 0;
+    private long checkSumx;
+    private long intCsum;
+    private long longCsum;
+    private long arrCsum;
+    private long floatCsum;
 
     public ArrowRead(){
         this.ra = new RootAllocator(Integer.MAX_VALUE);
+        this.checkSumx = 0;
+        this.intCsum = 0;
+        this.longCsum = 0;
+        this.arrCsum = 0;
+        this.floatCsum = 0;
     }
 
     private Schema makeSchema(){
@@ -95,7 +104,9 @@ public class ArrowRead {
         }
         System.out.println("Done processing the file");
         arrowFileReader.close();
-        System.err.println("****** > " + this.checkSum);
+        long s1 = this.intCsum + this.longCsum + this.arrCsum + this.floatCsum;
+        System.out.println("intSum " + intCsum + " longSum " + longCsum + " arrSum " + arrCsum + " floatSum " + floatCsum + " = " + s1);
+        System.err.println("Colsum Checksum > " + this.checkSumx + " , difference " + (s1 - this.checkSumx));
     }
 
     private String getAccessorString(ValueVector.Accessor accessor){
@@ -121,10 +132,12 @@ public class ArrowRead {
             if(!accessor.isNull(j)){
                 int value = accessor.get(j);
                 System.out.println("\t\t intAccessor[" + j +"] " + value);
-                this.checkSum+=value;
+                intCsum+=value;
+                this.checkSumx+=value;
             } else {
                 System.out.println("\t\t intAccessor[" + j +"] : NULL ");
             }
+
         }
     }
 
@@ -134,7 +147,8 @@ public class ArrowRead {
             if(!accessor.isNull(j)){
                 long value = accessor.get(j);
                 System.out.println("\t\t bigIntAccessor[" + j +"] " + value);
-                this.checkSum+=value;
+                longCsum+=value;
+                this.checkSumx+=value;
             } else {
                 System.out.println("\t\t bigIntAccessor[" + j +"] : NULL ");
             }
@@ -146,8 +160,10 @@ public class ArrowRead {
         for(int j = 0; j < accessor.getValueCount(); j++){
             if(!accessor.isNull(j)){
                 byte[] value = accessor.get(j);
+                long valHash = ArrowExampleClass.hashArray(value);
                 System.out.println("\t\t varBinaryAccessor[" + j +"] " + ArrowExampleClass.firstX(value, 5));
-                this.checkSum+=ArrowExampleClass.hashArray(value);
+                arrCsum += valHash;
+                this.checkSumx+=valHash;
             } else {
                 System.out.println("\t\t varBinaryAccessor[" + j +"] : NULL ");
             }
@@ -160,7 +176,8 @@ public class ArrowRead {
             if(!accessor.isNull(j)){
                 float value = accessor.get(j);
                 System.out.println("\t\t float4[" + j +"] " + value);
-                this.checkSum+=value;
+                floatCsum+=value;
+                this.checkSumx+=value;
             } else {
                 System.out.println("\t\t float4[" + j +"] : NULL ");
             }

@@ -14,8 +14,8 @@ public class ArrowExampleClass {
 
     public ArrowExampleClass(Random random, int index){
         this.random = random;
-        this.anInt = index; // this.random.nextInt();
-        this.aLong = this.random.nextLong();
+        this.anInt = this.random.nextInt(1024);
+        this.aLong = this.random.nextInt(Integer.MAX_VALUE);
         this.arr = new byte[this.random.nextInt(1024)];
         this.random.nextBytes(this.arr);
         this.aFloat = this.random.nextFloat();

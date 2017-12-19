@@ -28,20 +28,43 @@ public class ArrowWrite {
     private RootAllocator ra = null;
     private Random random;
     private int entries;
-    private int maxEntries = 1024;
-    private long checkSum = 0;
+    private int maxEntries;
+    private long checkSum;
 
     public ArrowWrite(){
+        this.maxEntries = 1024;
+        this.checkSum = 0;
         random = new Random(System.nanoTime());
         this.entries = 10; //this.random.nextInt(this.maxEntries);
         this.data = new ArrowExampleClass[this.entries];
         for(int i =0; i < this.entries; i++){
             this.data[i] = new ArrowExampleClass(this.random, i);
-            System.out.println(this.data[i].toString());
-            checkSum+=this.data[i].getSumHash();
+            long csum = this.data[i].getSumHash();
+            System.out.println(this.data[i].toString() + " csum: " + csum);
+            checkSum+=csum;
         }
+        long s1 = showColumnSum();
+        System.out.println();
+        //essentially here is the problem - this sum should match
+        System.out.println("They match : " + (s1 == checkSum) + " colSum " + s1 + " rowSum " + this.checkSum + " difference is " + (this.checkSum - s1));
         this.ra = new RootAllocator(Integer.MAX_VALUE);
     }
+
+    private long showColumnSum(){
+        long intSum = 0;
+        long longSum = 0;
+        long arrSum = 0;
+        long floatSum = 0;
+        for(int i =0; i < this.entries; i++){
+            intSum+=this.data[i].anInt;
+            longSum+=this.data[i].aLong;
+            arrSum+=ArrowExampleClass.hashArray(this.data[i].arr);
+            floatSum+=this.data[i].aFloat;
+        }
+        System.out.println("intSum " + intSum + " longSum " + longSum + " arrSum " + arrSum + " floatSum " + floatSum);
+        return intSum + longSum + arrSum + floatSum;
+    }
+
 
     private Schema makeSchema(){
         ImmutableList.Builder<Field> childrenBuilder = ImmutableList.builder();
@@ -83,12 +106,13 @@ public class ArrowWrite {
         VectorSchemaRoot root = VectorSchemaRoot.create(schema, this.ra);
         DictionaryProvider.MapDictionaryProvider provider = new DictionaryProvider.MapDictionaryProvider();
         ArrowFileWriter arrowWriter = new ArrowFileWriter(root, provider, fileOutputStream.getChannel());
-        // show some stuff about the schema and layout
-        for (Field field : root.getSchema().getFields()) {
-            FieldVector vector = root.getVector(field.getName());
-            showFieldLayout(field, vector);
+        if(false) {
+            // show some stuff about the schema and layout
+            for (Field field : root.getSchema().getFields()) {
+                FieldVector vector = root.getVector(field.getName());
+                showFieldLayout(field, vector);
+            }
         }
-
         // writing logic starts here
         int batchSize = 2;
         System.out.println(" Generated " + this.entries + " data entries , batch size " + batchSize);
@@ -120,7 +144,7 @@ public class ArrowWrite {
         arrowWriter.close();
         fileOutputStream.flush();
         fileOutputStream.close();
-        System.err.println("****** > " + this.checkSum);
+        System.err.println("****** : " + this.checkSum);
     }
 
     private void writeFieldInt(Field field, FieldVector fieldVector, int from, int items){
