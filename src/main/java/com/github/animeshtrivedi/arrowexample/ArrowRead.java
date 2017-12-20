@@ -4,9 +4,9 @@ import com.google.common.collect.ImmutableList;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.*;
 import org.apache.arrow.vector.dictionary.DictionaryProvider;
-import org.apache.arrow.vector.file.ArrowBlock;
-import org.apache.arrow.vector.file.ArrowFileReader;
-import org.apache.arrow.vector.file.SeekableReadChannel;
+import org.apache.arrow.vector.ipc.ArrowFileReader;
+import org.apache.arrow.vector.ipc.SeekableReadChannel;
+import org.apache.arrow.vector.ipc.message.ArrowBlock;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -109,13 +109,13 @@ public class ArrowRead {
         System.err.println("Colsum Checksum > " + this.checkSumx + " , difference " + (s1 - this.checkSumx));
     }
 
-    private String getAccessorString(ValueVector.Accessor accessor){
+    private String getAccessorString(ValueVector accessor){
         return  "accessorType: " + accessor.getClass().getCanonicalName()
                 + " valueCount " + accessor.getValueCount()
                 + " nullCount " + accessor.getNullCount();
     }
 
-    private void showAccessor(ValueVector.Accessor accessor){
+    private void showAccessor(ValueVector accessor){
         for(int j = 0; j < accessor.getValueCount(); j++){
             if(!accessor.isNull(j)){
                 System.out.println("\t\t accessorType:  " + accessor.getClass().getCanonicalName()
@@ -127,7 +127,7 @@ public class ArrowRead {
     }
 
     private void showIntAccessor(FieldVector fx){
-        NullableIntVector.Accessor accessor = ((NullableIntVector) fx).getAccessor();
+        IntVector accessor = ((IntVector) fx);
         for(int j = 0; j < accessor.getValueCount(); j++){
             if(!accessor.isNull(j)){
                 int value = accessor.get(j);
@@ -142,7 +142,7 @@ public class ArrowRead {
     }
 
     private void showBigIntAccessor(FieldVector fx){
-        NullableBigIntVector.Accessor accessor = ((NullableBigIntVector)fx).getAccessor();
+        BigIntVector accessor = ((BigIntVector)fx);
         for(int j = 0; j < accessor.getValueCount(); j++){
             if(!accessor.isNull(j)){
                 long value = accessor.get(j);
@@ -156,7 +156,7 @@ public class ArrowRead {
     }
 
     private void showVarBinaryAccessor(FieldVector fx){
-        NullableVarBinaryVector.Accessor accessor =((NullableVarBinaryVector) fx).getAccessor();
+        VarBinaryVector accessor =((VarBinaryVector) fx);
         for(int j = 0; j < accessor.getValueCount(); j++){
             if(!accessor.isNull(j)){
                 byte[] value = accessor.get(j);
@@ -171,7 +171,7 @@ public class ArrowRead {
     }
 
     private void showFloat4Accessor(FieldVector fx){
-        NullableFloat4Vector.Accessor accessor = ((NullableFloat4Vector)fx).getAccessor();
+        Float4Vector accessor = ((Float4Vector)fx);
         for(int j = 0; j < accessor.getValueCount(); j++){
             if(!accessor.isNull(j)){
                 float value = accessor.get(j);

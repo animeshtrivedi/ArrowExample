@@ -7,12 +7,11 @@ import java.util.List;
 import java.util.Random;
 
 import com.google.common.collect.ImmutableList;
+import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.memory.*;
 import org.apache.arrow.vector.*;
-import org.apache.arrow.vector.schema.ArrowVectorType;
 import org.apache.arrow.vector.dictionary.DictionaryProvider;
-import org.apache.arrow.vector.file.ArrowFileWriter;
-import org.apache.arrow.vector.schema.TypeLayout;
+import org.apache.arrow.vector.ipc.ArrowFileWriter;
 import org.apache.arrow.vector.types.pojo.*;
 
 import static org.apache.arrow.vector.types.FloatingPointPrecision.SINGLE;
@@ -106,6 +105,7 @@ public class ArrowWrite {
         VectorSchemaRoot root = VectorSchemaRoot.create(schema, this.ra);
         DictionaryProvider.MapDictionaryProvider provider = new DictionaryProvider.MapDictionaryProvider();
         ArrowFileWriter arrowWriter = new ArrowFileWriter(root, provider, fileOutputStream.getChannel());
+
         if(false) {
             // show some stuff about the schema and layout
             for (Field field : root.getSchema().getFields()) {
@@ -148,68 +148,65 @@ public class ArrowWrite {
     }
 
     private void writeFieldInt(Field field, FieldVector fieldVector, int from, int items){
-        NullableIntVector intVector = (NullableIntVector) fieldVector;
-        NullableIntVector.Mutator mutator = intVector.getMutator();
+        IntVector intVector = (IntVector) fieldVector;
         intVector.setInitialCapacity(items);
         intVector.allocateNew();
         for(int i = 0; i < items; i++){
-            mutator.setIndexDefined(i);
             // there is setSafe too - what does that mean? TODO:
-            mutator.set(i, 1, this.data[from + i].anInt);
+            intVector.setSafe(i, 1, this.data[from + i].anInt);
         }
         // how many are set
-        mutator.setValueCount(items);
+        fieldVector.setValueCount(items);
     }
 
     private void writeFieldLong(Field field, FieldVector fieldVector, int from, int items){
-        NullableBigIntVector bigIntVector = (NullableBigIntVector) fieldVector;
-        NullableBigIntVector.Mutator mutator = bigIntVector.getMutator();
+        BigIntVector bigIntVector = (BigIntVector) fieldVector;
         bigIntVector.setInitialCapacity(items);
         bigIntVector.allocateNew();
         for(int i = 0; i < items; i++){
-            mutator.set(i, 1, this.data[from + i].aLong);
+            bigIntVector.setSafe(i, 1, this.data[from + i].aLong);
         }
         // how many are set
-        mutator.setValueCount(items);
+        bigIntVector.setValueCount(items);
     }
 
     private void writeFieldVarBinary(Field field, FieldVector fieldVector, int from, int items){
-        NullableVarBinaryVector varBinaryVector = (NullableVarBinaryVector) fieldVector;
+        VarBinaryVector varBinaryVector = (VarBinaryVector) fieldVector;
         varBinaryVector.setInitialCapacity(items);
         varBinaryVector.allocateNew();
-        NullableVarBinaryVector.Mutator mutator = varBinaryVector.getMutator();
         for(int i = 0; i < items; i++){
-            mutator.setIndexDefined(i);
-            mutator.setValueLengthSafe(i, this.data[from + i].arr.length);
-            mutator.set(i, this.data[from + i].arr);
+            varBinaryVector.setIndexDefined(i);
+            varBinaryVector.setValueLengthSafe(i, this.data[from + i].arr.length);
+            varBinaryVector.setSafe(i, this.data[from + i].arr);
         }
         // how many are set
-        mutator.setValueCount(items);
+        varBinaryVector.setValueCount(items);
     }
 
     private void writeFieldFloat4(Field field, FieldVector fieldVector, int from, int items){
-        NullableFloat4Vector float4Vector  = (NullableFloat4Vector ) fieldVector;
-        NullableFloat4Vector.Mutator mutator = float4Vector.getMutator();
+        Float4Vector float4Vector  = (Float4Vector ) fieldVector;
         float4Vector.setInitialCapacity(items);
         float4Vector.allocateNew();
         for(int i = 0; i < items; i++){
-            mutator.set(i, 1, this.data[from + i].aFloat);
+            float4Vector.setSafe(i, 1, this.data[from + i].aFloat);
         }
         // how many are set
-        mutator.setValueCount(items);
+        float4Vector.setValueCount(items);
     }
 
     private void showFieldLayout(Field field, FieldVector fieldVector){
         // per field execution
         TypeLayout typeLayout = TypeLayout.getTypeLayout(field.getType());
-        List<ArrowVectorType> vectorTypes = field.getTypeLayout().getVectorTypes();
-        List<BufferBacked> fieldInnerVectors = fieldVector.getFieldInnerVectors();
-        if (vectorTypes.size() != fieldInnerVectors.size()) {
-            throw new IllegalArgumentException("vector types and inner vectors are not the same size: " + vectorTypes.size() + " != " + fieldInnerVectors.size());
+        List<BufferLayout.BufferType> vectorTypes = typeLayout.getBufferTypes();
+        ArrowBuf[] vectorBuffers = new ArrowBuf[vectorTypes.size()];
+
+
+        if (vectorTypes.size() != vectorBuffers.length) {
+            throw new IllegalArgumentException("vector types and vector buffers are not the same size: " + vectorTypes.size() + " != " + vectorBuffers.length);
         }
         System.out.println(" ----- [ " + field.toString() + " ] -------- ");
         System.out.println("FieldVector type: " + fieldVector.getClass().getCanonicalName());
-        System.out.println("TypeLayout is " +  typeLayout.toString() + " vectorSize is " + vectorTypes.size() + " innverVector Size: " + fieldInnerVectors.size());
+        System.out.println("TypeLayout is " +  typeLayout.toString() + " vectorSize is " + vectorTypes.size());
         for(int i = 0; i < vectorTypes.size(); i++){
             /* fields in the vector type tells how to locate, for primitive types it has only 2 validity and data
             whereas for binary it has 3, validity, offset and data. I suppose if I remove the nullable part, then
@@ -234,23 +231,5 @@ public class ArrowWrite {
 //            valueVector.allocateNew();
 //            valueVector.clear();
 //        }
-    }
-
-    private void writeInts(IntVector intVector) throws IOException {
-        intVector.setInitialCapacity(this.entries);
-        intVector.clear();
-        for(int i=0; i< this.entries; i++){
-            intVector.getMutator().set(i, this.data[i].anInt);
-        }
-    }
-
-    private VarBinaryVector writeBinary() throws IOException {
-        VarBinaryVector binaryVector = new VarBinaryVector("varBinary", this.ra);
-        binaryVector.setInitialCapacity(this.entries);
-        binaryVector.clear();
-        for(int i=0; i< this.entries; i++){
-            binaryVector.getMutator().setSafe(i, this.data[i].arr, 0, this.data[i].arr.length);
-        }
-        return binaryVector;
     }
 }
