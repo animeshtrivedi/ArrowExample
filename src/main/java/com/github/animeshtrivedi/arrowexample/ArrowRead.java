@@ -18,6 +18,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.List;
 
+import static com.github.animeshtrivedi.arrowexample.Utils.validateFile;
 import static org.apache.arrow.vector.types.FloatingPointPrecision.SINGLE;
 
 /**
@@ -30,9 +31,11 @@ public class ArrowRead {
     private long longCsum;
     private long arrCsum;
     private long floatCsum;
+    private long nullEntries;
 
     public ArrowRead(){
         this.ra = new RootAllocator(Integer.MAX_VALUE);
+        this.nullEntries = 0;
         this.checkSumx = 0;
         this.intCsum = 0;
         this.longCsum = 0;
@@ -47,20 +50,6 @@ public class ArrowRead {
         childrenBuilder.add(new Field("binary", FieldType.nullable(new ArrowType.Binary()), null));
         childrenBuilder.add(new Field("double", FieldType.nullable(new ArrowType.FloatingPoint(SINGLE)), null));
         return new Schema(childrenBuilder.build(), null);
-    }
-
-    private File validateFile(String fileName, boolean shouldExist) {
-        if (fileName == null) {
-            throw new IllegalArgumentException("missing file parameter");
-        }
-        File f = new File(fileName);
-        if (shouldExist && (!f.exists() || f.isDirectory())) {
-            throw new IllegalArgumentException(fileName + " file not found: " + f.getAbsolutePath());
-        }
-        if (!shouldExist && f.exists()) {
-            throw new IllegalArgumentException(fileName + " file already exists: " + f.getAbsolutePath());
-        }
-        return f;
     }
 
     public void makeRead(String filename) throws Exception {
@@ -121,6 +110,7 @@ public class ArrowRead {
                 System.out.println("\t\t accessorType:  " + accessor.getClass().getCanonicalName()
                         + " value[" + j +"] " + accessor.getObject(j));
             } else {
+                this.nullEntries++;
                 System.out.println("\t\t accessorType:  " + accessor.getClass().getCanonicalName() + " NULL at " + j);
             }
         }
@@ -135,9 +125,9 @@ public class ArrowRead {
                 intCsum+=value;
                 this.checkSumx+=value;
             } else {
+                this.nullEntries++;
                 System.out.println("\t\t intAccessor[" + j +"] : NULL ");
             }
-
         }
     }
 
@@ -150,6 +140,7 @@ public class ArrowRead {
                 longCsum+=value;
                 this.checkSumx+=value;
             } else {
+                this.nullEntries++;
                 System.out.println("\t\t bigIntAccessor[" + j +"] : NULL ");
             }
         }
@@ -165,6 +156,7 @@ public class ArrowRead {
                 arrCsum += valHash;
                 this.checkSumx+=valHash;
             } else {
+                this.nullEntries++;
                 System.out.println("\t\t varBinaryAccessor[" + j +"] : NULL ");
             }
         }
@@ -179,6 +171,7 @@ public class ArrowRead {
                 floatCsum+=value;
                 this.checkSumx+=value;
             } else {
+                this.nullEntries++;
                 System.out.println("\t\t float4[" + j +"] : NULL ");
             }
         }
@@ -212,9 +205,15 @@ public class ArrowRead {
         System.out.println("Hello World!"); // Display the string.
         ArrowRead ex = new ArrowRead();
         try {
-            ex.makeRead("./example.arrow");
+            System.out.println(" args are " + args.length);
+            if(args.length == 2) {
+                ex.makeRead(args[1]);
+            } else {
+                ex.makeRead("./example.arrow");
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
+        System.out.println(" >>> null entires " + ex.nullEntries);
     }
 }
