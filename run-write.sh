@@ -1,2 +1,2 @@
 rm example.arrow 
-java -cp ./target/arrowexample-1.0-jar-with-dependencies.jar com.github.animeshtrivedi.arrowexample.ArrowWrite 
+java -cp .:./target/arrowexample-1.0-jar-with-dependencies.jar com.github.animeshtrivedi.arrowexample.ArrowWrite $@
