@@ -80,7 +80,7 @@ public class ArrowWrite {
         ArrowWrite ex = new ArrowWrite();
         try {
             System.out.println("Number of arguments " + args.length);
-            if(args.length == 2){
+            if(args.length == 1){
                 ex.makeWrite("./example.arrow", true);
             } else{
                 ex.makeWrite("./example.arrow", false);
