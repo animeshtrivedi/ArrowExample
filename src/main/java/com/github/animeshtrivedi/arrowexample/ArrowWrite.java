@@ -31,12 +31,17 @@ public class ArrowWrite {
     private long checkSum;
     private long nullEntries;
     private boolean useNullValues;
+    private FileOutputStream fileOutputStream;
+    private VectorSchemaRoot root;
+    private ArrowFileWriter arrowFileWriter;
+    private int batchSize;
 
     public ArrowWrite(){
         this.useNullValues = false;
         this.nullEntries = 0;
         this.maxEntries = 1024;
         this.checkSum = 0;
+        this.batchSize = 100;
         random = new Random(System.nanoTime());
         this.entries = this.random.nextInt(this.maxEntries);
         this.data = new ArrowExampleClass[this.entries];
@@ -78,51 +83,39 @@ public class ArrowWrite {
         return new Schema(childrenBuilder.build(), null);
     }
 
-    public static void main(String[] args) {
-        ArrowWrite ex = new ArrowWrite();
-        try {
-            System.out.println("Number of arguments " + args.length);
-            if(args.length == 2){
-                ex.useNullValues = true;
-                ex.makeWrite("./example.arrow", true);
-            } else if(args.length == 1){
-                ex.makeWrite("./example.arrow", true);
-            } else{
-                ex.makeWrite("./example.arrow", false);
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        System.out.println("null entries " + ex.nullEntries);
-    }
-
-    public void makeWrite(String filename, boolean useCustom) throws Exception {
+    public void setupWrite(String filename, boolean useCustom) throws Exception {
         File arrowFile = validateFile(filename, false);
-        FileOutputStream fileOutputStream = new FileOutputStream(arrowFile);
+        this.fileOutputStream = new FileOutputStream(arrowFile);
         Schema schema = makeSchema();
-        VectorSchemaRoot root = VectorSchemaRoot.create(schema, this.ra);
+        this.root = VectorSchemaRoot.create(schema, this.ra);
         DictionaryProvider.MapDictionaryProvider provider = new DictionaryProvider.MapDictionaryProvider();
-        ArrowFileWriter arrowWriter = null;
-        if(!useCustom){
-            arrowWriter  = new ArrowFileWriter(root, provider, fileOutputStream.getChannel());
+        if (!useCustom) {
+            /* default java implementation of the channel */
+            this.arrowFileWriter = new ArrowFileWriter(root,
+                    provider,
+                    this.fileOutputStream.getChannel());
         } else {
-            arrowWriter = new ArrowFileWriter(root, provider, new ArrowOutputStream(fileOutputStream));
+            /* custom channel implementation in ArrowOutputStream */
+            this.arrowFileWriter = new ArrowFileWriter(root,
+                    provider,
+                    new ArrowOutputStream(this.fileOutputStream));
         }
 
-        if(false) {
+        if (false) {
             // show some stuff about the schema and layout
             for (Field field : root.getSchema().getFields()) {
                 FieldVector vector = root.getVector(field.getName());
                 showFieldLayout(field, vector);
             }
         }
-        // writing logic starts here
-        int batchSize = 100;
         System.out.println("Generated " + this.entries + " data entries , batch size " + batchSize + " usingCustomWriter: " + useCustom + " useNullValues " + this.useNullValues);
-        arrowWriter.start();
+    }
+    public void writeData() throws Exception{
+        // writing logic starts here
+        this.batchSize = 100;
+        arrowFileWriter.start();
         for(int i = 0; i < this.entries;) {
-            int toProcessItems = Math.min(batchSize, this.entries - i);
+            int toProcessItems = Math.min(this.batchSize, this.entries - i);
             // set the batch row count
             root.setRowCount(toProcessItems);
             for (Field field : root.getSchema().getFields()) {
@@ -144,11 +137,11 @@ public class ArrowWrite {
                         throw new Exception(" Not supported yet type: " + vector.getMinorType());
                 }
             }
-            arrowWriter.writeBatch();
+            arrowFileWriter.writeBatch();
             i+=toProcessItems;
         }
-        arrowWriter.end();
-        arrowWriter.close();
+        arrowFileWriter.end();
+        arrowFileWriter.close();
         fileOutputStream.flush();
         fileOutputStream.close();
         System.err.println("****** : " + this.checkSum);
@@ -250,5 +243,24 @@ public class ArrowWrite {
 //            valueVector.allocateNew();
 //            valueVector.clear();
 //        }
+    }
+
+    public static void main(String[] args) {
+        ArrowWrite ex = new ArrowWrite();
+        try {
+            System.out.println("Number of arguments " + args.length);
+            if(args.length == 2){
+                ex.useNullValues = true;
+                ex.setupWrite("./example.arrow", true);
+            } else if(args.length == 1){
+                ex.setupWrite("./example.arrow", true);
+            } else{
+                ex.setupWrite("./example.arrow", false);
+            }
+            ex.writeData();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        System.out.println("null entries " + ex.nullEntries);
     }
 }

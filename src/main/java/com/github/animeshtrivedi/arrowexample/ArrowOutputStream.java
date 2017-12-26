@@ -65,5 +65,6 @@ public class ArrowOutputStream implements WritableByteChannel {
         this.outStream.flush();
         this.outStream.close();
         this.isOpen = false;
+        System.out.println("Output stream wrote " + this.bytesSoFar + " bytes");
     }
 }

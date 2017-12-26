@@ -43,15 +43,6 @@ public class ArrowRead {
         this.floatCsum = 0;
     }
 
-    private Schema makeSchema(){
-        ImmutableList.Builder<Field> childrenBuilder = ImmutableList.builder();
-        childrenBuilder.add(new Field("int", FieldType.nullable(new ArrowType.Int(32, true)), null));
-        childrenBuilder.add(new Field("long", FieldType.nullable(new ArrowType.Int(64, true)), null));
-        childrenBuilder.add(new Field("binary", FieldType.nullable(new ArrowType.Binary()), null));
-        childrenBuilder.add(new Field("double", FieldType.nullable(new ArrowType.FloatingPoint(SINGLE)), null));
-        return new Schema(childrenBuilder.build(), null);
-    }
-
     public void makeRead(String filename) throws Exception {
         File arrowFile = validateFile(filename, true);
         FileInputStream fileInputStream = new FileInputStream(arrowFile);
@@ -118,10 +109,10 @@ public class ArrowRead {
     }
 
     private void showIntAccessor(FieldVector fx){
-        IntVector accessor = ((IntVector) fx);
-        for(int j = 0; j < accessor.getValueCount(); j++){
-            if(!accessor.isNull(j)){
-                int value = accessor.get(j);
+        IntVector intVector = ((IntVector) fx);
+        for(int j = 0; j < intVector.getValueCount(); j++){
+            if(!intVector.isNull(j)){
+                int value = intVector.get(j);
                 System.out.println("\t\t intAccessor[" + j +"] " + value);
                 intCsum+=value;
                 this.checkSumx+=value;
@@ -133,10 +124,10 @@ public class ArrowRead {
     }
 
     private void showBigIntAccessor(FieldVector fx){
-        BigIntVector accessor = ((BigIntVector)fx);
-        for(int j = 0; j < accessor.getValueCount(); j++){
-            if(!accessor.isNull(j)){
-                long value = accessor.get(j);
+        BigIntVector bigIntVector = ((BigIntVector)fx);
+        for(int j = 0; j < bigIntVector.getValueCount(); j++){
+            if(!bigIntVector.isNull(j)){
+                long value = bigIntVector.get(j);
                 System.out.println("\t\t bigIntAccessor[" + j +"] " + value);
                 longCsum+=value;
                 this.checkSumx+=value;
@@ -148,10 +139,10 @@ public class ArrowRead {
     }
 
     private void showVarBinaryAccessor(FieldVector fx){
-        VarBinaryVector accessor =((VarBinaryVector) fx);
-        for(int j = 0; j < accessor.getValueCount(); j++){
-            if(!accessor.isNull(j)){
-                byte[] value = accessor.get(j);
+        VarBinaryVector varBinaryVector =((VarBinaryVector) fx);
+        for(int j = 0; j < varBinaryVector.getValueCount(); j++){
+            if(!varBinaryVector.isNull(j)){
+                byte[] value = varBinaryVector.get(j);
                 long valHash = ArrowExampleClass.hashArray(value);
                 System.out.println("\t\t varBinaryAccessor[" + j +"] " + ArrowExampleClass.firstX(value, 5));
                 arrCsum += valHash;
@@ -164,10 +155,10 @@ public class ArrowRead {
     }
 
     private void showFloat4Accessor(FieldVector fx){
-        Float4Vector accessor = ((Float4Vector)fx);
-        for(int j = 0; j < accessor.getValueCount(); j++){
-            if(!accessor.isNull(j)){
-                float value = accessor.get(j);
+        Float4Vector float4Vector = ((Float4Vector)fx);
+        for(int j = 0; j < float4Vector.getValueCount(); j++){
+            if(!float4Vector.isNull(j)){
+                float value = float4Vector.get(j);
                 System.out.println("\t\t float4[" + j +"] " + value);
                 floatCsum+=value;
                 this.checkSumx+=value;
@@ -179,10 +170,10 @@ public class ArrowRead {
     }
 
     private void showFloat8Accessor(FieldVector fx){
-        Float8Vector accessor = ((Float8Vector)fx);
-        for(int j = 0; j < accessor.getValueCount(); j++){
-            if(!accessor.isNull(j)){
-                double value = accessor.get(j);
+        Float8Vector float8Vector = ((Float8Vector)fx);
+        for(int j = 0; j < float8Vector.getValueCount(); j++){
+            if(!float8Vector.isNull(j)){
+                double value = float8Vector.get(j);
                 System.out.println("\t\t float8[" + j +"] " + value);
                 floatCsum+=value;
                 this.checkSumx+=value;
