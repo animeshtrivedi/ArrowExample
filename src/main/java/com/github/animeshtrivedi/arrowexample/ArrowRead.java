@@ -85,6 +85,7 @@ public class ArrowRead {
                     case BIGINT: showBigIntAccessor(fieldVector.get(j)); break;
                     case VARBINARY: showVarBinaryAccessor(fieldVector.get(j)); break;
                     case FLOAT4: showFloat4Accessor(fieldVector.get(j));break;
+                    case FLOAT8: showFloat8Accessor(fieldVector.get(j));break;
                     default: throw new Exception(" MinorType " + mt);
                 }
                 //showAccessor(fieldVector.get(j).getAccessor());
@@ -173,6 +174,21 @@ public class ArrowRead {
             } else {
                 this.nullEntries++;
                 System.out.println("\t\t float4[" + j +"] : NULL ");
+            }
+        }
+    }
+
+    private void showFloat8Accessor(FieldVector fx){
+        Float8Vector accessor = ((Float8Vector)fx);
+        for(int j = 0; j < accessor.getValueCount(); j++){
+            if(!accessor.isNull(j)){
+                double value = accessor.get(j);
+                System.out.println("\t\t float8[" + j +"] " + value);
+                floatCsum+=value;
+                this.checkSumx+=value;
+            } else {
+                this.nullEntries++;
+                System.out.println("\t\t float8[" + j +"] : NULL ");
             }
         }
     }
