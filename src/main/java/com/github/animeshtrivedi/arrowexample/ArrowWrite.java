@@ -30,8 +30,10 @@ public class ArrowWrite {
     private int maxEntries;
     private long checkSum;
     private long nullEntries;
+    private boolean useNullValues;
 
     public ArrowWrite(){
+        this.useNullValues = false;
         this.nullEntries = 0;
         this.maxEntries = 1024;
         this.checkSum = 0;
@@ -41,7 +43,7 @@ public class ArrowWrite {
         for(int i =0; i < this.entries; i++){
             this.data[i] = new ArrowExampleClass(this.random, i);
             long csum = this.data[i].getSumHash();
-            // System.out.println(this.data[i].toString() + " csum: " + csum);
+            //System.out.println(this.data[i].toString() + " csum: " + csum);
             checkSum+=csum;
         }
         long s1 = showColumnSum();
@@ -80,7 +82,10 @@ public class ArrowWrite {
         ArrowWrite ex = new ArrowWrite();
         try {
             System.out.println("Number of arguments " + args.length);
-            if(args.length == 1){
+            if(args.length == 2){
+                ex.useNullValues = true;
+                ex.makeWrite("./example.arrow", true);
+            } else if(args.length == 1){
                 ex.makeWrite("./example.arrow", true);
             } else{
                 ex.makeWrite("./example.arrow", false);
@@ -114,28 +119,29 @@ public class ArrowWrite {
         }
         // writing logic starts here
         int batchSize = 100;
-        System.out.println("Generated " + this.entries + " data entries , batch size " + batchSize);
+        System.out.println("Generated " + this.entries + " data entries , batch size " + batchSize + " usingCustomWriter: " + useCustom + " useNullValues " + this.useNullValues);
         arrowWriter.start();
         for(int i = 0; i < this.entries;) {
             int toProcessItems = Math.min(batchSize, this.entries - i);
-            //root.setRowCount(toProcessItems);
+            // set the batch row count
+            root.setRowCount(toProcessItems);
             for (Field field : root.getSchema().getFields()) {
                 FieldVector vector = root.getVector(field.getName());
                 switch (vector.getMinorType()) {
                     case INT:
-                        writeFieldInt(field, vector, i, toProcessItems);
+                        writeFieldInt(vector, i, toProcessItems);
                         break;
                     case BIGINT:
-                        writeFieldLong(field, vector, i, toProcessItems);
+                        writeFieldLong(vector, i, toProcessItems);
                         break;
                     case VARBINARY:
-                        writeFieldVarBinary(field, vector, i, toProcessItems);
+                        writeFieldVarBinary(vector, i, toProcessItems);
                         break;
                     case FLOAT4:
-                        writeFieldFloat4(field, vector, i, toProcessItems);
+                        writeFieldFloat4(vector, i, toProcessItems);
                         break;
                     default:
-                        throw new Exception(" Does not work " + vector.getMinorType());
+                        throw new Exception(" Not supported yet type: " + vector.getMinorType());
                 }
             }
             arrowWriter.writeBatch();
@@ -148,51 +154,44 @@ public class ArrowWrite {
         System.err.println("****** : " + this.checkSum);
     }
 
-    private boolean markNull(){
-        if(this.random.nextInt() % 10 == 0){
-            this.nullEntries++;
-            return true;
+    private int isSet(){
+        if(useNullValues) {
+            if (this.random.nextInt() % 10 == 0) {
+                this.nullEntries++;
+                return 0;
+            }
         }
-        return false;
+        return 1;
     }
 
-    private void writeFieldInt(Field field, FieldVector fieldVector, int from, int items){
+    private void writeFieldInt(FieldVector fieldVector, int from, int items){
         IntVector intVector = (IntVector) fieldVector;
         intVector.setInitialCapacity(items);
         intVector.allocateNew();
         for(int i = 0; i < items; i++){
-            // there is setSafe too - what does that mean? TODO:
-            if(markNull()){
-                intVector.setNull(i);
-            } else {
-                intVector.setSafe(i, 1, this.data[from + i].anInt);
-            }
+            intVector.setSafe(i, isSet(), this.data[from + i].anInt);
         }
         // how many are set
         fieldVector.setValueCount(items);
     }
 
-    private void writeFieldLong(Field field, FieldVector fieldVector, int from, int items){
+    private void writeFieldLong(FieldVector fieldVector, int from, int items){
         BigIntVector bigIntVector = (BigIntVector) fieldVector;
         bigIntVector.setInitialCapacity(items);
         bigIntVector.allocateNew();
         for(int i = 0; i < items; i++){
-            if(markNull()){
-                bigIntVector.setNull(i);
-            } else {
-                bigIntVector.setSafe(i, 1, this.data[from + i].aLong);
-            }
+            bigIntVector.setSafe(i, isSet(), this.data[from + i].aLong);
         }
         // how many are set
         bigIntVector.setValueCount(items);
     }
 
-    private void writeFieldVarBinary(Field field, FieldVector fieldVector, int from, int items){
+    private void writeFieldVarBinary(FieldVector fieldVector, int from, int items){
         VarBinaryVector varBinaryVector = (VarBinaryVector) fieldVector;
         varBinaryVector.setInitialCapacity(items);
         varBinaryVector.allocateNew();
         for(int i = 0; i < items; i++){
-            if(markNull()){
+            if(isSet() == 0){
                 varBinaryVector.setNull(i);
             } else {
                 varBinaryVector.setIndexDefined(i);
@@ -204,16 +203,12 @@ public class ArrowWrite {
         varBinaryVector.setValueCount(items);
     }
 
-    private void writeFieldFloat4(Field field, FieldVector fieldVector, int from, int items){
+    private void writeFieldFloat4(FieldVector fieldVector, int from, int items){
         Float4Vector float4Vector  = (Float4Vector ) fieldVector;
         float4Vector.setInitialCapacity(items);
         float4Vector.allocateNew();
         for(int i = 0; i < items; i++){
-            if(markNull()){
-                float4Vector.setNull(i);
-            } else {
-                float4Vector.setSafe(i, 1, this.data[from + i].aFloat);
-            }
+            float4Vector.setSafe(i, isSet(), this.data[from + i].aFloat);
         }
         // how many are set
         float4Vector.setValueCount(items);
